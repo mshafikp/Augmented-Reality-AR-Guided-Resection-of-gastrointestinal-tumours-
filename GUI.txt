@@ -1,0 +1,163 @@
+from tkinter import *
+from PIL import Image
+from PIL import ImageTk
+from tkinter import messagebox
+from tkinter import filedialog
+import PIL.Image, PIL.ImageTk
+import cv2
+import datetime
+import os
+import tkinter
+
+
+
+class App:
+
+    def __init__(self, window, window_title, output_path = "C:\\Users\\Admin\Pictures\\tumour"):
+
+        self.window = window
+        self.window.title(window_title)
+
+        self.output_path = output_path  # store output path
+        self.current_image = None  # current image from the camera
+
+        top_frame = Frame(self.window)
+        top_frame.pack(side=TOP, pady=5)
+
+        bottom_frame = Frame(self.window)
+        bottom_frame.pack(side=BOTTOM, pady=5)
+
+        self.pause = False   # Parameter that controls pause button
+
+        self.canvas = Canvas(top_frame)
+        self.canvas.pack()
+
+        # Select Button
+        self.btn_select=Button(bottom_frame, text="Select video file", width=15, command=self.open_file)
+        self.btn_select.grid(row=0, column=0)
+
+        # Play Button
+        self.btn_play=Button(bottom_frame, text="Play", width=15, command=self.play_video)
+        self.btn_play.grid(row=0, column=1)
+
+        # Pause Button
+        self.btn_pause=Button(bottom_frame, text="Pause", width=15, command=self.pause_video)
+        self.btn_pause.grid(row=0, column=2)
+
+        # Resume Button
+        self.btn_resume=Button(bottom_frame, text="resume", width=15, command=self.resume_video)
+        self.btn_resume.grid(row=0, column=3)
+
+        # Button that lets the user take a snapshot
+        self.btn_snapshot=Button(bottom_frame, text="Snapshot", width=15, command=self.snapshot)
+        self.btn_snapshot.grid(row=0, column=4)
+
+        # Button that opens patient database
+        self.btn_patientdata=Button(bottom_frame, text="Patient Data", width=15, command=self.helloCallBack)
+        self.btn_patientdata.grid(row=0, column=5)
+
+        #Open The capture Image
+        self.btn_previewimage=Button(bottom_frame, text="View Tumor", width=15, command=self.showImage)
+        self.btn_previewimage.grid(row=0, column=6)
+
+        #Adjust Contrast, Saturation and contrast
+        self.btn_adjustimage=Button(bottom_frame, text="Adjust image", width=15, command=self.adjustimage)
+        self.btn_adjustimage.grid(row=0, column=7)
+
+        #Open Converted 3D file
+        self.btn_threedimage=Button(bottom_frame, text="3D View Tumor", width=15, command=self.threedimage)
+        self.btn_threedimage.grid(row=0, column=8)
+
+        
+
+        self.delay = 15   # ms
+
+        self.window.mainloop()
+
+
+    def open_file(self):
+
+        self.pause = False
+
+        self.filename = filedialog.askopenfilename(title="Select file", filetypes=(("MP4 files", "*.mp4"),
+                                                                                         ("WMV files", "*.wmv"), ("AVI files", "*.avi")))
+        print(self.filename)
+
+        # Open the video file
+        self.cap = cv2.VideoCapture(self.filename)
+
+        self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+        self.canvas.config(width = self.width, height = self.height)
+
+
+    def get_frame(self):   # get only one frame
+
+        try:
+
+            if self.cap.isOpened():
+                ret, frame = self.cap.read()
+                return (ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+        except:
+            messagebox.showerror(title='Video file not found', message='Please select a video file.')
+
+
+    def play_video(self):
+
+        # Get a frame from the video source, and go to the next frame automatically
+        ret, frame = self.get_frame()
+
+        if ret:
+            self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
+            self.canvas.create_image(0, 0, image = self.photo, anchor = NW)
+            cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)  # convert colors from BGR to RGBA
+            self.current_image = Image.fromarray(cv2image)
+
+        if not self.pause:
+            self.window.after(self.delay, self.play_video)
+
+
+    def pause_video(self):
+        self.pause = True
+
+    def helloCallBack(self):
+        os.system('python FINALGUI.py')
+
+    def showImage(self):
+        os.system('python croptry.py')
+
+    def threedimage(self):
+        os.system('python 3D_tumor.py')
+
+    def adjustimage(self):
+        os.system('python adjustimage.py')
+
+
+
+#Addition
+    def resume_video(self):
+        self.pause=False
+        self.play_video()
+
+    def snapshot(self):
+        """ Take snapshot and save it to the file """
+        ts = datetime.datetime.now() # grab the current timestamp
+        filename = "Tumor.jpeg".format(ts.strftime("%Y-%m-%d_%H-%M-%S"))  # construct filename
+        p = os.path.join(self.output_path, filename)  # construct output path
+        self.im=self.current_image.convert("RGB")
+        self.im.save(p, "JPEG")  # save image as jpeg file
+        print("[INFO] saved {}".format(filename))
+
+    # Release the video source when the object is destroyed
+    def __del__(self):
+        if self.cap.isOpened():
+            self.cap.release()
+
+##### End Class #####
+
+
+# Create a window and pass it to videoGUI Class
+App(Tk(), "ENDOSCOPY")
+
